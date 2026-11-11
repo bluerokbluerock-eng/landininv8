@@ -7,7 +7,7 @@ dependencias de ejecución ni compilación.
 
 Formulario
 Copia .env.example a .env y ejecuta node --env-file=.env server.mjs.
-Configura CRM_BACKEND_URL con la URL base del CRM y CRM_LANDING_V8_API_KEY
+Configura CRM_BACKEND_URL con la URL base del CRM y CRM_LANDING_API_KEY
 con una clave privada de al menos 32 caracteres, igual en la landing y crm-api.
 El servidor envía la solicitud a POST /api/v1/leads/landingv8 y muestra la
 confirmación cuando el CRM guarda el registro. La fecha de nacimiento es
@@ -20,7 +20,7 @@ evitar registros duplicados al reintentar.
 
 Railway
 Configura el servicio con el Dockerfile de la raíz y /railway.json. Declara
-CRM_BACKEND_URL y CRM_LANDING_V8_API_KEY en las variables del servicio.
+CRM_BACKEND_URL y CRM_LANDING_API_KEY en las variables del servicio.
 En producción, despliega primero la versión de crm-api con el endpoint v8.
 Si el CRM ya tiene la columna y el índice de landingv7, usa el esquema existente.
 

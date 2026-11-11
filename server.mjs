@@ -71,7 +71,7 @@ function crmEndpoint(baseUrl) {
 
 export function createLandingServer({ root, env = process.env, fetchImpl = fetch }) {
   const endpoint = crmEndpoint(env.CRM_BACKEND_URL);
-  const apiKey = env.CRM_LANDING_V8_API_KEY?.trim();
+  const apiKey = env.CRM_LANDING_API_KEY?.trim();
   return http.createServer(async (req, res) => {
     const json = (status, body) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
