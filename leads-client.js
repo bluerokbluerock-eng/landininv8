@@ -25,7 +25,7 @@
         throw new Error(result?.error || 'No se pudo confirmar el registro. Inténtalo de nuevo.');
       }
       pending.delete(form);
-      return response;
+      return result;
     },
   });
 })();

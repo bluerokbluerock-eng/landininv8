@@ -1,9 +1,15 @@
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { isIP } from 'node:net';
 import path from 'node:path';
+import { setTimeout as wait } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const META_COOKIE = /^fb\.\d+\.\d{10,16}\.[A-Za-z0-9_-]+$/;
+const META_ENDPOINT = 'https://graph.facebook.com/v25.0/1101059396141011/events';
+const META_DEDUP_WINDOW = 48 * 60 * 60 * 1000;
+const MAX_RECENT_META_EVENTS = 10000;
 const RESIDENCE_COUNTRIES = new Map(Object.entries({
   Argentina: 'AR', Bolivia: 'BO', Canadá: 'CA', Chile: 'CL', Colombia: 'CO',
   'Costa Rica': 'CR', Cuba: 'CU', Ecuador: 'EC', 'El Salvador': 'SV',
@@ -69,9 +75,80 @@ function crmEndpoint(baseUrl) {
   }
 }
 
+function metaAttribution(req, origin, isRailway) {
+  const userAgent = req.headers['user-agent']?.trim();
+  if (origin?.protocol !== 'https:' || !userAgent || userAgent.length > 1024) return;
+
+  const sourceUrl = `${origin.origin}/`;
+  if (sourceUrl.length > 2048) return;
+  const userData = { client_user_agent: userAgent };
+  for (const cookie of (req.headers.cookie || '').split(';')) {
+    const match = /^_(fbp|fbc)=(.+)$/.exec(cookie.trim());
+    if (match && match[2].length <= 512 && META_COOKIE.test(match[2])) {
+      userData[match[1]] = match[2];
+    }
+  }
+  const clientIp = req.headers['x-real-ip'];
+  if (isRailway && req.headers['x-railway-edge'] && typeof clientIp === 'string' && isIP(clientIp)) {
+    userData.client_ip_address = clientIp;
+  }
+  if (userData.fbp || userData.fbc || userData.client_ip_address) return { sourceUrl, userData };
+}
+
+async function sendMetaLead(fetchImpl, token, event) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await wait(1000);
+    try {
+      const response = await fetchImpl(META_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ data: [event] }),
+        redirect: 'error',
+        signal: AbortSignal.timeout(3000),
+      });
+      if (response.ok) return (await response.json()).events_received === 1;
+      await response.body?.cancel();
+      if (response.status !== 429 && response.status < 500) return false;
+    } catch {
+      // Retry an ambiguous transport failure with the same event ID and time.
+    }
+  }
+  return false;
+}
+
 export function createLandingServer({ root, env = process.env, fetchImpl = fetch }) {
   const endpoint = crmEndpoint(env.CRM_BACKEND_URL);
   const apiKey = env.CRM_LANDING_API_KEY?.trim();
+  const metaToken = env.META_CAPI_ACCESS_TOKEN?.trim();
+  const recentMetaEvents = new Map();
+
+  async function trackConfirmedLead(req, origin, requestId) {
+    if (!metaToken) return;
+    const attribution = metaAttribution(req, origin, Boolean(env.RAILWAY_ENVIRONMENT_ID));
+    if (!attribution) return;
+
+    const now = Date.now();
+    if (recentMetaEvents.get(requestId) > now) return;
+    for (const [id, expires] of recentMetaEvents) {
+      if (expires > now && recentMetaEvents.size < MAX_RECENT_META_EVENTS) break;
+      recentMetaEvents.delete(id);
+    }
+    const expires = now + META_DEDUP_WINDOW;
+    recentMetaEvents.set(requestId, expires);
+    const sent = await sendMetaLead(fetchImpl, metaToken, {
+      event_name: 'Lead',
+      event_id: `landingv8-lead-${requestId}`,
+      event_time: Math.floor(now / 1000),
+      action_source: 'website',
+      event_source_url: attribution.sourceUrl,
+      user_data: attribution.userData,
+    });
+    if (!sent) {
+      if (recentMetaEvents.get(requestId) === expires) recentMetaEvents.delete(requestId);
+      console.warn('Meta CAPI: no se confirmó el evento Lead de RecoveryAdvisory.');
+    }
+  }
+
   return http.createServer(async (req, res) => {
     const json = (status, body) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -84,8 +161,12 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
     if (pathname === '/api/leads') {
       if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return json(405, { ok: false }); }
       if (!/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) return json(415, { ok: false });
+      let origin;
       if (req.headers.origin) {
-        try { if (new URL(req.headers.origin).host !== req.headers.host) return json(403, { ok: false }); }
+        try {
+          origin = new URL(req.headers.origin);
+          if (origin.host !== req.headers.host) return json(403, { ok: false });
+        }
         catch { return json(403, { ok: false }); }
       }
       if (!endpoint || !apiKey || apiKey.length < 32) return json(503, { ok: false, error: 'El formulario está pendiente de configuración.' });
@@ -110,8 +191,10 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
         });
         const saved = upstream.ok ? await upstream.json() : null;
         if (!saved || saved.ok !== true || saved.id !== lead.requestId) throw new Error('not saved');
-        return json(200, { ok: true, id: saved.id });
       } catch { return json(502, { ok: false, error: 'No se pudo confirmar el registro. Inténtalo de nuevo.' }); }
+      json(200, { ok: true, id: lead.requestId });
+      void trackConfirmedLead(req, origin, lead.requestId);
+      return;
     }
 
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(405, { ok: false });

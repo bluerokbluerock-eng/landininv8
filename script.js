@@ -86,11 +86,16 @@
     buttonIcon.style.display = 'none';
     form.setAttribute('aria-busy', 'true');
     try {
-      await window.LandingLeads.submit(form, '/api/leads');
+      const { id } = await window.LandingLeads.submit(form, '/api/leads');
       form.reset();
       page.hidden = true;
       success.hidden = false;
       goToTop(document.getElementById('success-title'));
+      try {
+        window.fbq?.('trackSingle', '1101059396141011', 'Lead', {}, { eventID: `landingv8-lead-${id}` });
+      } catch {
+        // A tracking error cannot change the outcome of a saved submission.
+      }
     } catch (error) {
       submitError.textContent = error instanceof TypeError || error.name === 'TimeoutError'
         ? 'No fue posible enviar la solicitud. Revisa tu conexión o inténtalo de nuevo más tarde.'
