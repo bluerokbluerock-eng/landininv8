@@ -23,13 +23,14 @@ Configura el servicio con el Dockerfile de la raíz y /railway.json. Declara
 CRM_BACKEND_URL y CRM_LANDING_API_KEY en las variables del servicio.
 
 Meta Pixel y API de conversiones
-El píxel 1101059396141011 registra PageView al cargar. El navegador registra Lead
-después de que el CRM confirma el alta. El píxel y CAPI usan el mismo identificador
-landingv8-lead-<requestId> para que Meta deduplique ambas señales.
+El píxel 1101059396141011 registra PageView al cargar. El navegador registra
+CompleteRegistration después de que el CRM confirma el alta. El píxel y CAPI
+usan el mismo nombre de evento y el identificador landingv8-lead-<requestId>
+para que Meta deduplique ambas señales.
 
 Define META_CAPI_ACCESS_TOKEN como secreto en el servicio de esta landing en
-Railway. El servidor de la landing envía Lead a Meta después de recibir la
-confirmación del endpoint existente del CRM. El envío usa datos de atribución
+Railway. El servidor de la landing envía CompleteRegistration a Meta después
+de recibir la confirmación del endpoint del CRM. El envío usa datos de atribución
 del navegador cuando están disponibles. Los errores transitorios se reintentan
 una vez y se registran sin incluir credenciales ni datos del visitante.
 

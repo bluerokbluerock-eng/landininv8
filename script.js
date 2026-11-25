@@ -92,7 +92,9 @@
       success.hidden = false;
       goToTop(document.getElementById('success-title'));
       try {
-        window.fbq?.('trackSingle', '1101059396141011', 'Lead', {}, { eventID: `landingv8-lead-${id}` });
+        window.fbq?.('trackSingle', '1101059396141011', 'CompleteRegistration', {}, {
+          eventID: `landingv8-lead-${id}`,
+        });
       } catch {
         // A tracking error cannot change the outcome of a saved submission.
       }

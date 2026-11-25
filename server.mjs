@@ -95,7 +95,7 @@ function metaAttribution(req, origin, isRailway) {
   if (userData.fbp || userData.fbc || userData.client_ip_address) return { sourceUrl, userData };
 }
 
-async function sendMetaLead(fetchImpl, token, event) {
+async function sendMetaEvent(fetchImpl, token, event) {
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt) await wait(1000);
     try {
@@ -122,7 +122,7 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
   const metaToken = env.META_CAPI_ACCESS_TOKEN?.trim();
   const recentMetaEvents = new Map();
 
-  async function trackConfirmedLead(req, origin, requestId) {
+  async function trackCompletedRegistration(req, origin, requestId) {
     if (!metaToken) return;
     const attribution = metaAttribution(req, origin, Boolean(env.RAILWAY_ENVIRONMENT_ID));
     if (!attribution) return;
@@ -135,8 +135,8 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
     }
     const expires = now + META_DEDUP_WINDOW;
     recentMetaEvents.set(requestId, expires);
-    const sent = await sendMetaLead(fetchImpl, metaToken, {
-      event_name: 'Lead',
+    const sent = await sendMetaEvent(fetchImpl, metaToken, {
+      event_name: 'CompleteRegistration',
       event_id: `landingv8-lead-${requestId}`,
       event_time: Math.floor(now / 1000),
       action_source: 'website',
@@ -145,7 +145,7 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
     });
     if (!sent) {
       if (recentMetaEvents.get(requestId) === expires) recentMetaEvents.delete(requestId);
-      console.warn('Meta CAPI: no se confirmó el evento Lead de RecoveryAdvisory.');
+      console.warn('Meta CAPI: no se confirmó el evento CompleteRegistration de RecoveryAdvisory.');
     }
   }
 
@@ -193,7 +193,7 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
         if (!saved || saved.ok !== true || saved.id !== lead.requestId) throw new Error('not saved');
       } catch { return json(502, { ok: false, error: 'No se pudo confirmar el registro. Inténtalo de nuevo.' }); }
       json(200, { ok: true, id: lead.requestId });
-      void trackConfirmedLead(req, origin, lead.requestId);
+      void trackCompletedRegistration(req, origin, lead.requestId);
       return;
     }
 
