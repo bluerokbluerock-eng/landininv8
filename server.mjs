@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { isIP } from 'node:net';
@@ -92,8 +93,10 @@ function metaAttribution(req, origin, isRailway) {
   if (isRailway && req.headers['x-railway-edge'] && typeof clientIp === 'string' && isIP(clientIp)) {
     userData.client_ip_address = clientIp;
   }
-  if (userData.fbp || userData.fbc || userData.client_ip_address) return { sourceUrl, userData };
+  return { sourceUrl, userData };
 }
+
+const hashMetaValue = value => createHash('sha256').update(value).digest('hex');
 
 async function sendMetaEvent(fetchImpl, token, event) {
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -122,7 +125,7 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
   const metaToken = env.META_CAPI_ACCESS_TOKEN?.trim();
   const recentMetaEvents = new Map();
 
-  async function trackCompletedRegistration(req, origin, requestId) {
+  async function trackCompletedRegistration(req, origin, { requestId, email, phone }) {
     if (!metaToken) return;
     const attribution = metaAttribution(req, origin, Boolean(env.RAILWAY_ENVIRONMENT_ID));
     if (!attribution) return;
@@ -141,7 +144,11 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
       event_time: Math.floor(now / 1000),
       action_source: 'website',
       event_source_url: attribution.sourceUrl,
-      user_data: attribution.userData,
+      user_data: {
+        ...attribution.userData,
+        em: [hashMetaValue(email.trim().toLowerCase())],
+        ph: [hashMetaValue(phone.replace(/\D/g, '').replace(/^0+/, ''))],
+      },
     });
     if (!sent) {
       if (recentMetaEvents.get(requestId) === expires) recentMetaEvents.delete(requestId);
@@ -193,7 +200,7 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
         if (!saved || saved.ok !== true || saved.id !== lead.requestId) throw new Error('not saved');
       } catch { return json(502, { ok: false, error: 'No se pudo confirmar el registro. Inténtalo de nuevo.' }); }
       json(200, { ok: true, id: lead.requestId });
-      void trackCompletedRegistration(req, origin, lead.requestId);
+      void trackCompletedRegistration(req, origin, lead);
       return;
     }
 

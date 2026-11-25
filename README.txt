@@ -33,9 +33,12 @@ landingv8-lead-<requestId> para que Meta deduplique ambas señales.
 
 Define META_CAPI_ACCESS_TOKEN como secreto en el servicio de esta landing en
 Railway. El servidor de la landing envía CompleteRegistration a Meta después
-de recibir la confirmación del endpoint del CRM. El envío usa datos de atribución
-del navegador cuando están disponibles. Los errores transitorios se reintentan
-una vez y se registran sin incluir credenciales ni datos del visitante.
+de recibir la confirmación del endpoint del CRM. Envía el correo (`em`) y
+el teléfono (`ph`) normalizados con SHA-256 en `user_data`. Conserva los datos
+de atribución del navegador cuando están disponibles, pero no requiere cookies
+de Meta ni una IP para enviar el evento. No envía el nombre ni la fecha de
+nacimiento, ni tampoco correo o teléfono en texto plano. Los errores transitorios
+se reintentan una vez y se registran sin credenciales ni datos del visitante.
 
 Recursos
 Foto del ZIP: Unsplash, photo-1758518729908-d4220a678d81.
