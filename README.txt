@@ -15,8 +15,11 @@ opcional y el consentimiento es obligatorio.
 
 Los nuevos leads se guardan en Retenciones (área 1), la campaña 27
 y el estado inicial 38. Aparecen en Leads Metrics según los permisos del CRM.
-El CRM utiliza el mismo landingRequestId e índice único de landingv7 para
-evitar registros duplicados al reintentar.
+El CRM utiliza el índice único de landingRequestId para evitar registros duplicados
+al reintentar. Durante 30 minutos, el último envío conserva su ID si se reenvía
+el mismo formulario en la misma pestaña, incluso tras recargar. Solo se guarda
+una huella del formulario junto al ID y su estado, no los campos del formulario.
+Esto no deduplica por correo o teléfono entre sesiones o dispositivos.
 
 Railway
 Configura el servicio con el Dockerfile de la raíz y /railway.json. Declara
@@ -24,9 +27,9 @@ CRM_BACKEND_URL y CRM_LANDING_API_KEY en las variables del servicio.
 
 Meta Pixel y API de conversiones
 El píxel 1101059396141011 registra PageView al cargar. El navegador registra
-CompleteRegistration después de que el CRM confirma el alta. El píxel y CAPI
-usan el mismo nombre de evento y el identificador landingv8-lead-<requestId>
-para que Meta deduplique ambas señales.
+CompleteRegistration una vez por solicitud confirmada, incluso si se reenvía
+con el mismo ID. El píxel y CAPI usan el mismo nombre de evento y el identificador
+landingv8-lead-<requestId> para que Meta deduplique ambas señales.
 
 Define META_CAPI_ACCESS_TOKEN como secreto en el servicio de esta landing en
 Railway. El servidor de la landing envía CompleteRegistration a Meta después
