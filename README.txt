@@ -28,8 +28,8 @@ CRM_BACKEND_URL y CRM_LANDING_API_KEY en las variables del servicio.
 Meta Pixel y API de conversiones
 El píxel 1101059396141011 registra PageView al cargar. El navegador registra
 CompleteRegistration una vez por solicitud confirmada, incluso si se reenvía
-con el mismo ID. El píxel y CAPI usan el mismo nombre de evento y el identificador
-landingv8-lead-<requestId> para que Meta deduplique ambas señales.
+con el mismo ID. CAPI conserva el identificador landingv8-lead-<requestId> para
+sus reintentos. El píxel envía CompleteRegistration sin un ID compartido con CAPI.
 
 Define META_CAPI_ACCESS_TOKEN como secreto en el servicio de esta landing en
 Railway. El servidor de la landing envía CompleteRegistration a Meta después

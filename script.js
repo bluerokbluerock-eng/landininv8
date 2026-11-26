@@ -86,16 +86,14 @@
     buttonIcon.style.display = 'none';
     form.setAttribute('aria-busy', 'true');
     try {
-      const { id, trackRegistration } = await window.LandingLeads.submit(form, '/api/leads');
+      const { trackRegistration } = await window.LandingLeads.submit(form, '/api/leads');
       form.reset();
       page.hidden = true;
       success.hidden = false;
       goToTop(document.getElementById('success-title'));
       try {
         if (trackRegistration) {
-          window.fbq?.('trackSingle', '1101059396141011', 'CompleteRegistration', {}, {
-            eventID: `landingv8-lead-${id}`,
-          });
+          window.fbq?.('trackSingle', '1101059396141011', 'CompleteRegistration', {});
         }
       } catch {
         // A tracking error cannot change the outcome of a saved submission.
