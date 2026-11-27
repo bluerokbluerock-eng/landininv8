@@ -682,9 +682,6 @@ input::placeholder, .placeholder {
   stroke: currentColor;
   stroke-width: 1.6;
 }
-.country-field {
-  z-index: 5;
-}
 .country-menu {
   position: absolute;
   z-index: 30;

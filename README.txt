@@ -10,20 +10,18 @@ Copia .env.example a .env y ejecuta node --env-file=.env server.mjs.
 Configura CRM_BACKEND_URL con la URL base del CRM y CRM_LANDING_API_KEY
 con una clave privada de al menos 32 caracteres, igual en la landing y crm-api.
 El formulario usa Country.is para detectar el país por IP y sugerir el
-prefijo de WhatsApp y el país de residencia. Si la detección del servidor
-no identifica un país admitido, el navegador consulta Country.is con su
-IP pública. El prefijo y el país se pueden ajustar. El
-WhatsApp es el dato de contacto del formulario. El monto se selecciona en
-MXN para México, ARS para Argentina y PYG para
-Paraguay. Cada tramo muestra la referencia corta en USD al lado. Si falla
-la detección, se puede seleccionar el país manualmente. Se usan las
+prefijo de WhatsApp. Si falla la detección, el prefijo queda sin seleccionar.
+El prefijo se puede ajustar y determina la moneda de los rangos y el país de
+residencia que se envía al CRM. Cada tramo muestra el importe en MXN (+52),
+ARS (+54) o PYG (+595), con una referencia corta en USD al lado. Se usan las
 cotizaciones de USD y PYG publicadas por el BCRA para calcular los tramos
 en Argentina y Paraguay. ARS_PER_USD y PYG_PER_USD permiten fijar una
 cotización por país. El tiempo admite 1, 3 o 6 meses.
-La fecha de nacimiento es opcional y el consentimiento es obligatorio.
+El consentimiento es obligatorio.
 
-Los montos inferiores al mínimo del país no se envían al CRM. Los demás se
-envían a POST /api/v1/leads/landingv8. El CRM los guarda en Retenciones
+Los montos inferiores al mínimo del país muestran la misma confirmación de
+recepción que los demás, sin crear un lead ni enviar una conversión. Los
+montos admitidos se envían a POST /api/v1/leads/landingv8. El CRM los guarda en Retenciones
 (área 1), campaña 27 y estado inicial 38, con clasificación Hueso (13k–28k),
 Carne (28k–50k) o Súper carne (más de 50k) y una nota con la moneda, el tramo
 y el tiempo. Aparecen en Leads Metrics según los permisos del CRM.

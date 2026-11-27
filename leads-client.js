@@ -34,10 +34,8 @@
   window.LandingLeads = Object.freeze({
     async submit(form, endpoint) {
       const fields = Object.fromEntries(new FormData(form));
-      const [prefix, phoneCountry] = fields.dialCode.split('|');
+      fields.phone = `${fields.dialCode} ${fields.phone.trim()}`;
       delete fields.dialCode;
-      fields.phone = `${prefix} ${fields.phone.trim()}`;
-      fields.phoneCountry = phoneCountry;
       fields.consent = fields.consent === 'on';
       fields.incidentMonths = Number(fields.incidentMonths);
       const signature = JSON.stringify(fields);

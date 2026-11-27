@@ -128,7 +128,6 @@
                 </div>
                 <div class="form-intro">
                   <p>Completa tus datos para solicitar el análisis inicial de tu caso.</p>
-                  <p>Nuestro equipo te contactará para explicarte el proceso y la información necesaria.</p>
                 </div>
                 <div
                   class="form-status"
@@ -162,13 +161,17 @@
                   <label for="phone">WhatsApp con código de país</label>
                   <div class="phone-input">
                     <select
+                      id="dialCode"
                       name="dialCode"
                       autocomplete="tel-country-code"
                       aria-label="Prefijo internacional"
+                      aria-describedby="dialCode-error"
+                      required
                     >
-                      <option value="+54|AR" selected="">AR +54</option>
-                      <option value="+52|MX">MX +52</option>
-                      <option value="+595|PY">PY +595</option>
+                      <option value="" disabled selected>Código</option>
+                      <option value="+54" data-country="AR" data-currency="ARS">AR +54</option>
+                      <option value="+52" data-country="MX" data-currency="MXN">MX +52</option>
+                      <option value="+595" data-country="PY" data-currency="PYG">PY +595</option>
                     </select>
                     <input
                       id="phone"
@@ -182,29 +185,12 @@
                       placeholder="600 000 000"
                     />
                   </div>
+                  <span id="dialCode-error" class="error-message" hidden=""></span>
                   <span id="phone-error" class="error-message" hidden=""></span>
-                </div>
-                <div class="field country-field">
-                  <label for="country">País de residencia</label>
-                  <input
-                    id="country"
-                    name="country"
-                    list="countries"
-                    placeholder="Selecciona tu país"
-                    autocomplete="off"
-                    aria-describedby="country-error"
-                    required=""
-                  />
-                  <datalist id="countries">
-                    <option value="México"></option>
-                    <option value="Argentina"></option>
-                    <option value="Paraguay"></option>
-                  </datalist>
-                  <span id="country-error" class="error-message" hidden=""></span>
                 </div>
                 <fieldset class="field loss-field" id="lossBand" aria-describedby="lossBand-error">
                   <legend>¿Cuánto dinero perdiste?</legend>
-                  <p id="loss-band-status" class="loss-band-status" role="status">Selecciona tu país de residencia.</p>
+                  <p id="loss-band-status" class="loss-band-status" role="status">Selecciona el prefijo de WhatsApp.</p>
                   <div id="loss-band-options" class="loss-band-options" hidden></div>
                   <span id="lossBand-error" class="error-message" hidden=""></span>
                 </fieldset>
@@ -217,25 +203,6 @@
                     <option value="6">6 meses</option>
                   </select>
                   <span id="incidentMonths-error" class="error-message" hidden=""></span>
-                </div>
-                <div class="field">
-                  <label for="birthDate">
-                    Fecha de nacimiento
-                    <span>(opcional)</span>
-                  </label>
-                  <input
-                    id="birthDate"
-                    name="dob"
-                    min="1900-01-01"
-                    aria-describedby="birthDate-error"
-                    type="date"
-                    autocomplete="bday"
-                  />
-                  <span
-                    id="birthDate-error"
-                    class="error-message"
-                    hidden=""
-                  ></span>
                 </div>
                 <div class="consent">
                   <input
@@ -610,7 +577,7 @@
         </span>
         <h1 id="success-title" tabindex="-1">SOLICITUD RECIBIDA</h1>
         <p>
-          Nuestro equipo te contactará para explicarte el proceso de evaluación.
+          Gracias por compartir la información. Si podemos ayudarte, te contactaremos por WhatsApp.
         </p>
         <button id="return-home" class="primary-button" type="button">
           VOLVER AL INICIO

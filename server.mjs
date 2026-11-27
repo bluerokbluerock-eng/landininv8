@@ -14,20 +14,10 @@ const MAX_RECENT_META_EVENTS = 10000;
 const LOSS_BANDS = new Set(['under-13k', '13k-28k', '28k-50k', 'over-50k']);
 const BCRA_ENDPOINT = 'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones';
 const HOUR = 60 * 60 * 1000;
-const RESIDENCE_COUNTRIES = new Map(Object.entries({
-  Argentina: 'AR', Bolivia: 'BO', Canadá: 'CA', Chile: 'CL', Colombia: 'CO',
-  'Costa Rica': 'CR', Cuba: 'CU', Ecuador: 'EC', 'El Salvador': 'SV',
-  España: 'ES', 'Estados Unidos': 'US', Francia: 'FR', Guatemala: 'GT',
-  'Guinea Ecuatorial': 'GQ', Honduras: 'HN', Italia: 'IT', México: 'MX',
-  Nicaragua: 'NI', Panamá: 'PA', Paraguay: 'PY', Perú: 'PE',
-  'Puerto Rico (territorio)': 'PR', 'República Dominicana': 'DO', Uruguay: 'UY', Venezuela: 'VE',
-}));
 const PHONE_COUNTRIES = new Map(Object.entries({
-  '+54': 'AR', '+591': 'BO', '+56': 'CL', '+57': 'CO', '+506': 'CR',
-  '+53': 'CU', '+593': 'EC', '+503': 'SV', '+34': 'ES', '+33': 'FR',
-  '+502': 'GT', '+240': 'GQ', '+504': 'HN', '+39': 'IT', '+52': 'MX',
-  '+505': 'NI', '+507': 'PA', '+595': 'PY', '+51': 'PE', '+598': 'UY',
-  '+58': 'VE',
+  '+52': 'MX',
+  '+54': 'AR',
+  '+595': 'PY',
 }));
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.avif': 'image/avif', '.woff': 'font/woff', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 const ROOT_FILES = new Set(['index.html', 'styles.css', 'script.js', 'leads-client.js', 'favicon.ico']);
@@ -37,33 +27,21 @@ function cleanLead(data) {
   if (data.consent !== true) throw new Error('invalid');
   if (!LOSS_BANDS.has(data.lossBand) || ![1, 3, 6].includes(data.incidentMonths)) throw new Error('invalid');
   const lead = { requestId: data.requestId.toLowerCase() };
-  for (const [key, max] of Object.entries({ name: 160, phone: 40, country: 100, dob: 10 })) {
+  for (const [key, max] of Object.entries({ name: 160, phone: 40 })) {
     if (typeof data[key] !== 'string') throw new Error('invalid');
     const value = data[key].trim();
-    if ((!value && key !== 'dob') || value.length > max || /[\u0000-\u001f\u007f]/.test(value)) throw new Error('invalid');
+    if (!value || value.length > max || /[\u0000-\u001f\u007f]/.test(value)) throw new Error('invalid');
     lead[key] = value;
   }
-  const phone = /^\+\d{1,3} ([\d ()-]{7,18})$/.exec(lead.phone);
-  if (lead.name.length < 3 || !phone || phone[1].replace(/\D/g, '').length < 7) throw new Error('invalid');
-  if (lead.dob) {
-    const birth = new Date(`${lead.dob}T00:00:00Z`);
-    const today = new Date().toISOString().slice(0, 10);
-    const adultCutoff = `${Number(today.slice(0, 4)) - 18}${today.slice(4)}`;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(lead.dob) || !Number.isFinite(+birth) || birth.toISOString().slice(0, 10) !== lead.dob || lead.dob < '1900-01-01' || lead.dob > adultCutoff) throw new Error('invalid');
-  }
-  const residenceCountryCode = RESIDENCE_COUNTRIES.get(lead.country);
-  if (!residenceCountryCode) throw new Error('invalid');
-  const [prefix] = lead.phone.split(' ');
-  const phoneCountry = prefix === '+1' && ['CA', 'US', 'DO', 'PR'].includes(data.phoneCountry)
-    ? data.phoneCountry
-    : PHONE_COUNTRIES.get(prefix);
+  const phone = /^(\+\d{1,3}) ([\d ()-]{7,18})$/.exec(lead.phone);
+  const phoneCountry = PHONE_COUNTRIES.get(phone?.[1]);
+  if (lead.name.length < 3 || !phoneCountry || phone[2].replace(/\D/g, '').length < 7) throw new Error('invalid');
   return {
     requestId: lead.requestId,
     name: lead.name,
     phone: lead.phone,
     phoneCountry,
-    residenceCountryCode,
-    birthDate: lead.dob || undefined,
+    residenceCountryCode: phoneCountry,
     consent: true,
     lossBand: data.lossBand,
     incidentMonths: data.incidentMonths,
@@ -274,9 +252,11 @@ export function createLandingServer({ root, env = process.env, fetchImpl = fetch
       try { lead = cleanLead(JSON.parse(raw)); }
       catch { return json(400, { ok: false, error: 'Revisa los campos del formulario.' }); }
       if (lead.lossBand === 'under-13k') {
-        return json(422, { ok: false, error: 'El monto seleccionado está por debajo del mínimo para solicitar la evaluación.' });
+        return json(200, { ok: true, id: lead.requestId, trackRegistration: false });
       }
-      if (!endpoint || !apiKey || apiKey.length < 32) return json(503, { ok: false, error: 'El formulario está pendiente de configuración.' });
+      if (!endpoint || !apiKey || apiKey.length < 32) {
+        return json(503, { ok: false, error: 'No pudimos enviar tu solicitud. Inténtalo más tarde.' });
+      }
       try {
         const upstream = await fetchImpl(endpoint, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },

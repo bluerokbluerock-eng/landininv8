@@ -4,7 +4,7 @@
   const page = document.getElementById('landing-page');
   const success = document.getElementById('success-page');
   const form = document.getElementById('lead-form');
-  const { fullName, phone, dialCode, country, incidentMonths, birthDate, consent } = form.elements;
+  const { fullName, phone, dialCode, incidentMonths, consent } = form.elements;
   const lossBand = document.getElementById('lossBand');
   const lossOptions = document.getElementById('loss-band-options');
   const lossStatus = document.getElementById('loss-band-status');
@@ -14,13 +14,9 @@
   const buttonLabel = button.querySelector('span');
   const buttonIcon = button.querySelector('svg');
   const readyLabel = buttonLabel.textContent;
-  const today = new Date().toISOString().slice(0, 10);
-  const adultCutoff = `${Number(today.slice(0, 4)) - 18}${today.slice(4)}`;
-  const countries = {
-    MX: { name: 'México', dialCode: '+52|MX', currency: 'MXN' },
-    AR: { name: 'Argentina', dialCode: '+54|AR', currency: 'ARS' },
-    PY: { name: 'Paraguay', dialCode: '+595|PY', currency: 'PYG' },
-  };
+  const dialCodesByCountry = new Map(
+    [...dialCode.options].filter(option => option.value).map(option => [option.dataset.country, option.value])
+  );
   const usdThresholds = [13000, 28000, 50000];
   const localFormats = {
     MXN: new Intl.NumberFormat('es-MX'),
@@ -29,12 +25,10 @@
   };
   const exchangeRates = {};
   const loadingRates = new Set();
-  let countryEdited = false;
   let dialCodeEdited = false;
-  let detectedCountry;
+  let detectedDialCode;
   let lossCurrency;
-  birthDate.max = today;
-  document.getElementById('footer-year').textContent = today.slice(0, 4);
+  document.getElementById('footer-year').textContent = new Date().toISOString().slice(0, 4);
 
   function setError(field, message = '') {
     const error = document.getElementById(`${field.id}-error`);
@@ -42,14 +36,10 @@
     error.hidden = !message;
     if (message) field.setAttribute('aria-invalid', 'true');
     else field.removeAttribute('aria-invalid');
-    if (field === phone) field.closest('.phone-input').classList.toggle('input-error', Boolean(message));
-  }
-
-  function selectedCountry() {
-    const value = country.value.trim();
-    return Object.values(countries).find(({ name }) =>
-      name.localeCompare(value, 'es', { sensitivity: 'base' }) === 0
-    );
+    if (field === phone || field === dialCode) {
+      const phoneInvalid = [phone, dialCode].some(control => control.hasAttribute('aria-invalid'));
+      field.closest('.phone-input').classList.toggle('input-error', phoneInvalid);
+    }
   }
 
   function thresholdsForCurrency(currency) {
@@ -62,11 +52,6 @@
     return `${symbol}${localFormats[currency].format(value)}`;
   }
 
-  function minimumLossMessage() {
-    const [minimum] = thresholdsForCurrency(lossCurrency);
-    return `Evaluamos casos desde ${formatLocalAmount(minimum, lossCurrency)} ${lossCurrency}.`;
-  }
-
   function renderLossBands() {
     const currency = lossCurrency;
     const thresholds = thresholdsForCurrency(currency);
@@ -74,7 +59,7 @@
     lossOptions.hidden = !thresholds;
     lossStatus.hidden = Boolean(thresholds);
     if (!thresholds) {
-      if (!currency) lossStatus.textContent = 'Selecciona tu país de residencia.';
+      if (!currency) lossStatus.textContent = 'Selecciona el prefijo de WhatsApp.';
       else if (loadingRates.has(currency)) lossStatus.textContent = `Cargando montos en ${currency}…`;
       else lossStatus.textContent = `Montos en ${currency} no disponibles.`;
       return;
@@ -82,10 +67,10 @@
 
     const [low, middle, high] = thresholds.map(value => formatLocalAmount(value, currency));
     const bands = [
-      ['under-13k', `Menos de ${low}`, '(< ~$13k USD)'],
+      ['under-13k', `Menos de ${low}`, '(Menos de ~$13k USD)'],
       ['13k-28k', `${low}\u00a0– ${middle}`, '(~$13k – $28k USD)'],
       ['28k-50k', `${middle}\u00a0– ${high}`, '(~$28k – $50k USD)'],
-      ['over-50k', `Más de ${high}`, '(> ~$50k USD)'],
+      ['over-50k', `Más de ${high}`, '(Más de ~$50k USD)'],
     ];
     for (const [value, amount, reference] of bands) {
       const label = document.createElement('label');
@@ -129,17 +114,16 @@
     }
   }
 
-  function updateCountry() {
-    const selection = selectedCountry();
-    if (selection && !dialCodeEdited) dialCode.value = selection.dialCode;
-    if (lossCurrency === selection?.currency) return;
-    lossCurrency = selection?.currency;
+  function updateLossCurrency() {
+    const currency = dialCode.selectedOptions[0]?.dataset.currency;
+    if (lossCurrency === currency) return;
+    lossCurrency = currency;
     setError(lossBand);
     renderLossBands();
     if (lossCurrency && !thresholdsForCurrency(lossCurrency)) void loadExchangeRate(lossCurrency);
   }
 
-  async function fetchDetectedCountry(url, countryField) {
+  async function fetchDetectedDialCode(url, countryField) {
     try {
       const response = await fetch(url, {
         credentials: 'omit',
@@ -148,68 +132,56 @@
       });
       if (!response.ok) return;
       const data = await response.json();
-      const code = data?.[countryField];
-      if (Object.hasOwn(countries, code)) return countries[code];
+      return dialCodesByCountry.get(data?.[countryField]);
     } catch {
-      // The visitor can still select their country and dial code.
+      // The visitor can still select their dial code.
     }
   }
 
-  async function detectCountry() {
+  async function detectDialCode() {
     if (location.protocol !== 'file:') {
-      detectedCountry = await fetchDetectedCountry('/api/form-context', 'countryCode');
+      detectedDialCode = await fetchDetectedDialCode('/api/form-context', 'countryCode');
     }
-    detectedCountry ??= await fetchDetectedCountry('https://api.country.is/', 'country');
-    if (!detectedCountry || countryEdited) return;
-    country.value = detectedCountry.name;
-    setError(country);
-    updateCountry();
+    detectedDialCode ??= await fetchDetectedDialCode('https://api.country.is/', 'country');
+    if (!detectedDialCode || dialCodeEdited) return;
+    dialCode.value = detectedDialCode;
+    setError(dialCode);
+    updateLossCurrency();
     summary.hidden = !form.querySelector('[aria-invalid="true"]');
   }
 
   form.addEventListener('input', ({ target }) => {
     if (target.hasAttribute('aria-describedby')) setError(target);
-    if (target === country) {
-      countryEdited = true;
-      updateCountry();
+    if (target === dialCode) {
+      dialCodeEdited = true;
+      updateLossCurrency();
     }
-    if (target === dialCode) dialCodeEdited = true;
-    if (target.name === 'lossBand') setError(lossBand, target.value === 'under-13k' ? minimumLossMessage() : '');
+    if (target.name === 'lossBand') setError(lossBand);
     submitError.hidden = true;
     if (!summary.hidden) summary.hidden = !form.querySelector('[aria-invalid="true"]');
   });
-  updateCountry();
-  void detectCountry();
+  updateLossCurrency();
+  void detectDialCode();
 
   function validate() {
     setError(fullName, fullName.value.trim().length < 3 ? 'Introduce tu nombre completo.' : '');
     const number = phone.value.trim();
     const validPhone = /^[\d ()-]{7,18}$/.test(number) && number.replace(/\D/g, '').length >= 7;
     setError(phone, validPhone ? '' : 'Introduce un número de teléfono válido.');
-    const selection = selectedCountry();
-    setError(country, selection ? '' : 'Selecciona un país de la lista.');
-    if (selection) country.value = selection.name;
-    updateCountry();
+    setError(dialCode, dialCode.value ? '' : 'Selecciona el prefijo de WhatsApp.');
+    updateLossCurrency();
 
     const selectedBand = lossOptions.querySelector('input:checked');
     let lossError = '';
-    if (selectedBand?.value === 'under-13k') lossError = minimumLossMessage();
-    else if (lossCurrency && !thresholdsForCurrency(lossCurrency)) {
+    if (lossCurrency && !thresholdsForCurrency(lossCurrency)) {
       lossError = loadingRates.has(lossCurrency)
         ? `Espera a que carguen los montos en ${lossCurrency}.`
         : `Vuelve a intentar cargar los montos en ${lossCurrency}.`;
       void loadExchangeRate(lossCurrency);
-    } else if (!selectedBand && selection) lossError = 'Selecciona el rango del monto perdido.';
+    } else if (!selectedBand && lossCurrency) lossError = 'Selecciona el rango del monto perdido.';
     setError(lossBand, lossError);
     setError(incidentMonths, incidentMonths.value ? '' : 'Indica hace cuánto ocurrió.');
 
-    let dateError = '';
-    if (birthDate.validity.badInput || birthDate.validity.rangeUnderflow || birthDate.validity.rangeOverflow) {
-      dateError = 'Introduce una fecha de nacimiento válida.';
-    } else if (birthDate.value && birthDate.value > adultCutoff) {
-      dateError = 'Debes ser mayor de edad para continuar.';
-    }
-    setError(birthDate, dateError);
     setError(consent, consent.checked ? '' : 'Debes autorizar el tratamiento de tus datos.');
     summary.hidden = !form.querySelector('[aria-invalid="true"]');
     if (!summary.hidden) summary.focus();
@@ -248,10 +220,9 @@
     try {
       const { trackRegistration } = await window.LandingLeads.submit(form, '/api/leads');
       form.reset();
-      countryEdited = false;
       dialCodeEdited = false;
-      country.value = detectedCountry?.name ?? '';
-      updateCountry();
+      dialCode.value = detectedDialCode ?? '';
+      updateLossCurrency();
       page.hidden = true;
       success.hidden = false;
       goToTop(document.getElementById('success-title'));
