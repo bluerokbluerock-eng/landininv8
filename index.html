@@ -159,21 +159,6 @@
                   ></span>
                 </div>
                 <div class="field">
-                  <label for="email">Correo electrónico</label>
-                  <input
-                    id="email"
-                    required=""
-                    maxlength="254"
-                    aria-describedby="email-error"
-                    name="email"
-                    type="email"
-                    autocomplete="email"
-                    inputmode="email"
-                    placeholder="correo@ejemplo.com"
-                  />
-                  <span id="email-error" class="error-message" hidden=""></span>
-                </div>
-                <div class="field">
                   <label for="phone">WhatsApp con código de país</label>
                   <div class="phone-input">
                     <select
@@ -217,6 +202,22 @@
                   </datalist>
                   <span id="country-error" class="error-message" hidden=""></span>
                 </div>
+                <fieldset class="field loss-field" id="lossBand" aria-describedby="lossBand-error">
+                  <legend>¿Cuánto dinero perdiste?</legend>
+                  <p id="loss-band-status" class="loss-band-status" role="status">Selecciona tu país de residencia.</p>
+                  <div id="loss-band-options" class="loss-band-options" hidden></div>
+                  <span id="lossBand-error" class="error-message" hidden=""></span>
+                </fieldset>
+                <div class="field">
+                  <label for="incidentMonths">¿Hace cuánto ocurrió?</label>
+                  <select id="incidentMonths" name="incidentMonths" aria-describedby="incidentMonths-error" required>
+                    <option value="" disabled selected>Selecciona el tiempo</option>
+                    <option value="1">1 mes</option>
+                    <option value="3">3 meses</option>
+                    <option value="6">6 meses</option>
+                  </select>
+                  <span id="incidentMonths-error" class="error-message" hidden=""></span>
+                </div>
                 <div class="field">
                   <label for="birthDate">
                     Fecha de nacimiento
@@ -251,7 +252,7 @@
                 </div>
                 <span id="consent-error" class="error-message" hidden=""></span>
                 <button class="submit-button" type="submit">
-                  <span>EVALUAR MI CASO GRATIS</span>
+                  <span>EVALUAR MI CASO</span>
                   <svg
                     width="18"
                     height="18"

@@ -39,6 +39,7 @@
       fields.phone = `${prefix} ${fields.phone.trim()}`;
       fields.phoneCountry = phoneCountry;
       fields.consent = fields.consent === 'on';
+      fields.incidentMonths = Number(fields.incidentMonths);
       const signature = JSON.stringify(fields);
       const key = await fingerprint(signature);
       const now = Date.now();
@@ -64,7 +65,7 @@
       if (!response.ok || result?.ok !== true || result.id !== entry.requestId) {
         throw new Error(result?.error || 'No se pudo confirmar el registro. Inténtalo de nuevo.');
       }
-      const trackRegistration = !entry.confirmed;
+      const trackRegistration = result.trackRegistration === true && !entry.confirmed;
       entry.confirmed = true;
       remember(entry);
       return { id: result.id, trackRegistration };

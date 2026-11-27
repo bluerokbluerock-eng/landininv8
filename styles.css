@@ -551,7 +551,7 @@ h1 em, h2 em {
   position: relative;
   margin-bottom: 17px;
 }
-.field label {
+.field label, .loss-field legend {
   display: block;
   margin-bottom: 7px;
   color: var(--text);
@@ -562,7 +562,55 @@ h1 em, h2 em {
   color: var(--text-muted);
   font-weight: 400;
 }
-.field > input, .select-button, .phone-input {
+.loss-field {
+  min-width: 0;
+  padding: 0;
+}
+.loss-band-status {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.loss-band-options {
+  display: grid;
+  gap: 6px;
+}
+.loss-band-options .loss-band-option {
+  display: grid;
+  grid-template-columns: auto minmax(min-content, 1fr) minmax(0, max-content);
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background-soft);
+  font-size: 13px;
+  line-height: 1.32;
+  cursor: pointer;
+}
+.loss-band-option input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--gold);
+}
+.loss-band-option:has(input:checked) {
+  border-color: var(--gold);
+  background: #f6f1e7;
+}
+.loss-band-option:has(input:focus-visible) {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.loss-band-option .loss-band-amount {
+  color: var(--text);
+  font-weight: 600;
+}
+.loss-band-option .loss-band-reference {
+  font-size: 12px;
+  text-align: right;
+}
+.field > input, .field > select, .select-button, .phone-input {
   width: 100%;
   height: 52px;
   border: 1px solid var(--border);
@@ -573,10 +621,18 @@ h1 em, h2 em {
 .field > input {
   padding: 0 15px;
 }
+.field > select {
+  padding: 0 8px;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+.field > select:invalid {
+  color: var(--text-muted);
+}
 input::placeholder, .placeholder {
   color: var(--text-muted);
 }
-.field > input:focus, .phone-input:focus-within, .select-button:focus {
+.field > input:focus, .field > select:focus, .phone-input:focus-within, .select-button:focus {
   border-color: var(--gold);
   box-shadow: 0 0 0 1px var(--gold);
   outline: none;
@@ -1100,7 +1156,7 @@ footer {
   font-weight: 700;
   font-display: swap;
 }
-.field > input[aria-invalid="true"] {
+.field > :is(input, select)[aria-invalid="true"] {
   border-color: var(--error);
 }
 #evaluacion {
